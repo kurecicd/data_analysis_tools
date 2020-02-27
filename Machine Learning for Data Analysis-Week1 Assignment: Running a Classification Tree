@@ -1,0 +1,183 @@
+# -*- coding: utf-8 -*-
+“”“
+Created on Sun Jan 31 15:13:17 2016
+
+@author: air
+”“”
+
+from pandas import Series, DataFrame
+import pandas as pandas
+import numpy as numpy
+import os
+import matplotlib.pylab as plt
+from sklearn.cross_validation import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import classification_report
+import sklearn.metrics
+# any additional libraries would be imported here
+
+#import the data from csv
+data_orig1 = pandas.read_csv(‘addhealth_pds.csv’, low_memory=False)
+#create a new data set just with those variables to work just with this data - optional
+data_orig2 = data_orig1[['AID’,'BIO_SEX’,'H1GI18’, 'H1ED7’, 'H1TO31’, 'H1TO32’,'H1TO35’,'H1TO36’, 'H1WP9’,'H1WP13’,'H1FS17’]]
+#making a copy of data set
+data=data_orig2.copy()
+#setting suspension value blank to 9, to be able to convert to numeric later on
+data['H1ED7’] = data['H1ED7’].replace(’ ’, 9)
+#dealing just with those who are in school
+data=data[(data['H1GI18’]==1)]
+#upper-case all DataFrame column names
+data.columns = map(str.upper, data.columns)
+# bug fix for display formats to avoid run time errors
+pandas.set_option('display.float_format’, lambda x:’%f’%x)
+
+print ('————————————’)
+print ('data imported from addhealth_pds.csv’)
+print ('————————————’)
+
+#c1 = data['BIO_SEX’].value_counts(sort=False,dropna=True)
+#print (c1)
+
+#setting variables you will be working with to numeric + coding out missing data
+
+#how many times tried marijuana
+#data['H1TO31’] = data['H1TO31’].convert_objects(convert_numeric=True)
+data['H1TO31’] = pandas.to_numeric(data['H1TO31’])
+#coding out missing data replace refused, don’t know and N/A
+data['H1TO31’] = data['H1TO31’].replace(996, numpy.nan)
+data['H1TO31’] = data['H1TO31’].replace(998, numpy.nan)
+data['H1TO31’] = data['H1TO31’].replace(999, numpy.nan)
+#replace legitimate skip
+data['H1TO31’] = data['H1TO31’].replace(997, 0)
+
+#usage of marijuana in last 30 days
+#data['H1TO32’] = data['H1TO32’].convert_objects(convert_numeric=True)
+data['H1TO32’] = pandas.to_numeric(data['H1TO32’])
+#coding out missing data replace
+data['H1TO32’] = data['H1TO32’].replace(996, numpy.nan)
+data['H1TO32’] = data['H1TO32’].replace(998, numpy.nan)
+data['H1TO32’] = data['H1TO32’].replace(999, numpy.nan)
+data['H1TO32’] = data['H1TO32’].replace(997, 0)
+
+#how many times u tried cocaine
+#data['H1TO35’] = data['H1TO35’].convert_objects(convert_numeric=True)
+data['H1TO35’] = pandas.to_numeric(data['H1TO35’])
+#coding out missing data replace
+data['H1TO35’] = data['H1TO35’].replace(996, numpy.nan)
+data['H1TO35’] = data['H1TO35’].replace(998, numpy.nan)
+data['H1TO35’] = data['H1TO35’].replace(999, numpy.nan)
+data['H1TO35’] = data['H1TO35’].replace(997, 0)
+
+#cocaine in past 30 days
+#data['H1TO36’] = data['H1TO36’].convert_objects(convert_numeric=True)
+data['H1TO36’] = pandas.to_numeric(data['H1TO36’])
+#coding out missing data replace
+data['H1TO36’] = data['H1TO36’].replace(996, numpy.nan)
+data['H1TO36’] = data['H1TO36’].replace(998, numpy.nan)
+data['H1TO36’] = data['H1TO36’].replace(999, numpy.nan)
+data['H1TO36’] = data['H1TO36’].replace(997, 0)
+
+#How close do you feel to your {MOTHER/ADOPTIVE MOTHER/ STEPMOTHER/ FOSTER MOTHER/etc.}?
+#data['H1WP9’] = data['H1WP9’].convert_objects(convert_numeric=True)
+data['H1WP9’] = pandas.to_numeric(data['H1WP9’])
+#coding out missing data replace
+data['H1WP9’] = data['H1WP9’].replace(6, numpy.nan)
+#replacing no mom with 0
+data['H1WP9’] = data['H1WP9’].replace(7, numpy.nan)
+data['H1WP9’] = data['H1WP9’].replace(8, numpy.nan)
+
+#How close do you feel to your {FATHER/ADOPTIVE FATHER/STEPFATHER/FOSTER FATHER/etc.}?
+#data['H1WP13’] = data['H1WP13’].convert_objects(convert_numeric=True)
+data['H1WP13’] = pandas.to_numeric(data['H1WP13’])
+#coding out missing data replace
+data['H1WP13’] = data['H1WP13’].replace(6, numpy.nan)
+#replacing no dad with 0, no setting to null, I want to exclude those kids without the parents
+data['H1WP13’] = data['H1WP13’].replace(7, numpy.nan)
+data['H1WP13’] = data['H1WP13’].replace(8, numpy.nan)
+
+#You felt that people disliked you
+#data['H1FS17’] = data['H1FS17’].convert_objects(convert_numeric=True)
+data['H1FS17’] = pandas.to_numeric(data['H1FS17’])
+#coding out missing data replace
+data['H1FS17’] = data['H1FS17’].replace(6, numpy.nan)
+data['H1FS17’] = data['H1FS17’].replace(8, numpy.nan)
+
+#data['BIO_SEX’] = data['BIO_SEX’].convert_objects(convert_numeric=True)
+data['BIO_SEX’] = pandas.to_numeric(data['BIO_SEX’])
+
+data['H1ED7’] = pandas.to_numeric(data['H1ED7’])
+data['H1ED7’] = data['H1ED7’].replace(6, numpy.nan)
+data['H1ED7’] = data['H1ED7’].replace(7, numpy.nan)
+data['H1ED7’] = data['H1ED7’].replace(8, numpy.nan)
+data['H1ED7’] = data['H1ED7’].replace(9, numpy.nan)
+
+#just renaming the variable to more meaningful name
+data['FREQ_M’] = data['H1TO31’].copy()
+data['FREQ_M_30D’] = data['H1TO32’].copy()
+data['FREQ_C’] = data['H1TO35’].copy()
+data['FREQ_C_30D’] = data['H1TO36’].copy()
+data['IN_SCHOOL’] = data['H1GI18’].copy()
+data['DISLIKED’] = data['H1FS17’].copy()
+data['GENDER’] = data['BIO_SEX’].copy()
+data['SUSPENSION’] = data['H1ED7’].copy()
+#grouping
+data['PARENTS’] = (data['H1WP9’]+data['H1WP13’])
+
+#data.describe()
+#data['H1ED7’].describe()
+
+#c1 = data['DISLIKED’].value_counts(sort=False,dropna=True)
+#print(c1)
+
+#c1 = data['PARENTS’].value_counts(sort=False,dropna=True)
+#print(c1)
+
+data_clean = data.dropna()
+
+data_clean.dtypes
+data_clean.describe()
+
+“”“
+Modeling and Prediction
+”“”
+#Split into training and testing sets
+
+predictors = data_clean[['DISLIKED’,'PARENTS’]]
+#predictors = data_clean[['PARENTS’]]
+
+targets = data_clean.SUSPENSION
+
+pred_train, pred_test, tar_train, tar_test  =   train_test_split(predictors, targets, test_size=.4)
+
+pred_train.shape
+pred_test.shape
+tar_train.shape
+tar_test.shape
+
+#Build model on training data
+classifier=DecisionTreeClassifier()
+classifier=classifier.fit(pred_train,tar_train)
+
+predictions=classifier.predict(pred_test)
+
+sklearn.metrics.confusion_matrix(tar_test,predictions)
+sklearn.metrics.accuracy_score(tar_test, predictions)
+
+#Displaying the decision tree
+from sklearn import tree
+#from StringIO import StringIO
+from io import StringIO
+#from StringIO import StringIO
+from IPython.display import Image
+out = StringIO()
+
+tree.export_graphviz(classifier, out_file=out)
+
+import pydotplus
+
+graph=pydotplus.graph_from_dot_data(out.getvalue())
+
+#Image(graph.create_png())
+
+with open('picture_out2.png’, 'wb’) as f:
+   f.write(graph.create_png())
