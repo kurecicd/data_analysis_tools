@@ -1,0 +1,98 @@
+# -*- coding: utf-8 -*-
+“”“
+Created on Fri Feb 19 17:55:26 2016
+
+@author: air
+”“”
+
+import numpy as np
+import pandas as pd
+import matplotlib.pylab as plt
+from sklearn.cross_validation import train_test_split
+from sklearn.linear_model import LassoLarsCV
+from sklearn import preprocessing
+data = pd.read_csv(‘tree_addhealth.csv’)
+
+data.columns = map(str.upper, data.columns)
+data_clean = data.dropna()
+
+data_clean.dtypes
+data_clean.describe()
+
+“”“
+Modeling and Prediction
+”“”
+#Split into training and testing sets
+
+predvar= data_clean[['HISPANIC’,'WHITE’,'BLACK’,'NAMERICAN’,'ASIAN’,
+'AGE’,'ALCEVR1’,'ALCPROBS1’,'SCHCONN1’,'INHEVER1’,'CIGAVAIL’,'DEP1’,
+'ESTEEM1’,'VIOL1’,'PASSIST’,'DEVIANT1’,'GPA1’,'EXPEL1’,'FAMCONCT’,'PARACTV’,
+'PARPRES’,'MAREVER1’]]
+target = data_clean.COCEVER1
+
+predvar.columns = map(str.upper, predvar.columns)
+
+# standardize predictors to have mean=0 and sd=1
+predictors=predvar.copy()
+
+for i in range(0,len(predvar.columns)-1):
+   predictors[predvar.columns[i]] = preprocessing.scale(predictors[predvar.columns[i]].astype('float64’))
+
+predictors.describe()
+target.describe()
+
+# split data into train and test sets
+pred_train,pred_test,tar_train,tar_test = train_test_split(predvar,target,test_size=.4, random_state=123)
+
+# specify the lasso regression model
+model = LassoLarsCV(cv=10, precompute=False).fit(pred_train,tar_train)
+
+pred_train.shape
+pred_test.shape
+tar_train.shape
+tar_test.shape
+
+# print variable names and regression coefficients
+dict(zip(predictors.columns, model.coef_))
+
+# plot coefficient progression
+m_log_alphas = -np.log10(model.alphas_)
+ax = plt.gca()
+plt.plot(m_log_alphas, model.coef_path_.T)
+plt.axvline(-np.log10(model.alpha_), linestyle=’–’, color='k’,
+           label='alpha CV’)
+plt.ylabel('Regression Coefficients’)
+plt.xlabel(’-log(alpha)’)
+plt.title('Regression Coefficients Progression for Lasso Paths’)
+plt.savefig(“plot_coefficient_progression.png”)
+
+# plot mean square error for each fold
+m_log_alphascv = -np.log10(model.cv_alphas_)
+plt.figure()
+plt.plot(m_log_alphascv, model.cv_mse_path_, ’:’)
+plt.plot(m_log_alphascv, model.cv_mse_path_.mean(axis=-1), 'k’,
+        label='Average across the folds’, linewidth=2)
+plt.axvline(-np.log10(model.alpha_), linestyle=’–’, color='k’,
+           label='alpha CV’)
+plt.legend()
+plt.xlabel(’-log(alpha)’)
+plt.ylabel('Mean squared error’)
+plt.title('Mean squared error on each fold’)
+plt.savefig(“plot_mean_square_error_for_each_fold.png”)
+
+# MSE from training and test data
+from sklearn.metrics import mean_squared_error
+train_error = mean_squared_error(tar_train, model.predvar(pred_train))
+test_error = mean_squared_error(tar_test, model.predvar(pred_test))
+print ('training data MSE’)
+print(train_error)
+print ('test data MSE’)
+print(test_error)
+
+# R-square from training and test data
+rsquared_train=model.score(pred_train,tar_train)
+rsquared_test=model.score(pred_test,tar_test)
+print ('training data R-square’)
+print(rsquared_train)
+print ('test data R-square’)
+print(rsquared_test)
