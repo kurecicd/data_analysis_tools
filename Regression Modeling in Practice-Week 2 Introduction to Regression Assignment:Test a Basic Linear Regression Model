@@ -1,0 +1,97 @@
+# -*- coding: utf-8 -*-
+“’
+Created on Sat Dec 19 14:30:00 2015
+
+@author: air
+”’
+import pandas
+import numpy
+import seaborn
+import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
+import statsmodels.stats.multicomp as multi
+# any additional libraries would be imported here
+
+#import the data from csv
+data_orig1 = pandas.read_csv(‘addhealth_pds.csv’, low_memory=False)
+#create a new data set just with those variables to work just with this data - optional
+data_orig2 = data_orig1[['AID’,'H1GI18’, 'H1TO32’,'H1WP9’,'H1WP13’]]
+#making a copy of data set
+data=data_orig2.copy()
+#dealing just with those who are in school
+data=data[(data['H1GI18’]==1)]
+#upper-case all DataFrame column names
+data.columns = map(str.upper, data.columns)
+# bug fix for display formats to avoid run time errors
+pandas.set_option('display.float_format’, lambda x:’%f’%x)
+
+print ('————————————’)
+print ('data imported from addhealth_pds.csv’)
+print ('————————————’)
+
+#setting variables you will be working with to numeric + coding out missing data
+
+#how many times tried marijuana
+data['H1TO32’] = data['H1TO32’].convert_objects(convert_numeric=True)
+#coding out missing data replace refused, don’t know and N/A
+data['H1TO32’] = data['H1TO32’].replace(996, numpy.nan)
+data['H1TO32’] = data['H1TO32’].replace(998, numpy.nan)
+data['H1TO32’] = data['H1TO32’].replace(999, numpy.nan)
+#replace legitimate skip
+data['H1TO32’] = data['H1TO32’].replace(997, 0)
+
+#How close do you feel to your {MOTHER/ADOPTIVE MOTHER/ STEPMOTHER/ FOSTER MOTHER/etc.}?
+data['H1WP9’] = data['H1WP9’].convert_objects(convert_numeric=True)
+#coding out missing data replace
+data['H1WP9’] = data['H1WP9’].replace(6, numpy.nan)
+#replacing no mom with 0
+data['H1WP9’] = data['H1WP9’].replace(7, numpy.nan)
+data['H1WP9’] = data['H1WP9’].replace(8, numpy.nan)
+
+#How close do you feel to your {FATHER/ADOPTIVE FATHER/STEPFATHER/FOSTER FATHER/etc.}?
+data['H1WP13’] = data['H1WP13’].convert_objects(convert_numeric=True)
+#coding out missing data replace
+data['H1WP13’] = data['H1WP13’].replace(6, numpy.nan)
+#replacing no dad with 0, no setting to null, I want to exclude those kids without the parents
+data['H1WP13’] = data['H1WP13’].replace(7, numpy.nan)
+data['H1WP13’] = data['H1WP13’].replace(8, numpy.nan)
+
+#just renaming the variable to more meaningful name
+data['FREQ_M_30D’] = data['H1TO32’].copy()
+#grouping
+data['PARENTS’] = (data['H1WP9’]+data['H1WP13’])
+
+#recoding into 4 groups
+recode2 = {2:1, 3:1, 4:2, 5:2, 6:2, 7:3, 8:3, 9:4, 10:4}
+data['PARENTS’] = data['PARENTS’].map(recode2)
+c1 = data['PARENTS’].value_counts(sort=False,dropna=True)
+print(c1)
+
+Centering
+
+data['FREQ_M_30D_centered’] = data['FREQ_M_30D’] - data['FREQ_M_30D’].mean()
+#print (data.describe())
+
+# using ols function for calculating the F-statistic and associated p value
+reg1 = smf.ols('PARENTS ~ FREQ_M_30D_centered’, data=data).fit()
+print (reg1.summary())
+
+# listwise deletion for calculating means for regression model observations
+print ('—————–’)
+print ('describe data set’)
+sub1 = data[['FREQ_M_30D_centered’, 'PARENTS’]].dropna()
+print (sub1.describe())
+
+print ('——————-’)
+print ('groups ~ means & sd’)
+print ('Mea’)
+ds1 = sub1.groupby('PARENTS’).mean()
+print (ds1)
+print ('Standard deviation’)
+ds2 = sub1.groupby('PARENTS’).std()
+print (ds2)
+
+# bivariate bar graph
+seaborn.factorplot(x='PARENTS’, y='FREQ_M_30D_centered’, data=sub1, kind='bar’, ci=None,order=[1,2,3,4,5])
+plt.xlabel('Feelings toward parents’)
+plt.ylabel('Frequency of joints smoked in last 30 days’)
