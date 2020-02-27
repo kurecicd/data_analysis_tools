@@ -1,0 +1,14 @@
+Part of the program code:
+
+lreg1 = smf.logit(formula = ‘SUSPENSION ~ FREQ_M_30D_c + FREQ_C_30D_c + DISLIKED’, data = sub1).fit()
+print (lreg1.summary())
+
+##odds ratio
+print ('Odds Ratios’)
+print (numpy.exp(lreg1.params))
+#
+params = lreg1.params
+conf = lreg1.conf_int()
+conf['OR’] = params
+conf.columns = ['Lower CI’, 'Upper CI’, 'OR’]
+print (numpy.exp(conf))
